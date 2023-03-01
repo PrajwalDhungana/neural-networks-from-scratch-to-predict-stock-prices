@@ -30,6 +30,10 @@ function select_model() {
     });
 }
 
+function unpack(rows, key) {
+    return rows.map(function(row) { return row[key]; });
+  }
+
 // shows a spinner icon when predict button is pressed
 function spinner(hide=false) {
     let spinner = $("#predict").find('#spinner');
@@ -70,26 +74,32 @@ $(document).ready(() => {
         }).then(function (data) {
             // plot new data
             let title = data.stock + " - Accuracy: " + data.accuracy + " %";
-
+            console.log(data)
             let actual = {
                 x : data.actualX,
                 y : data.actual,
-                name : "actual",
-                mode : "lines"
+                name : "Actual",
+                mode : "lines",
+                type: "scatter",
+                line: {color: "#17becf"}
             };
 
             let train = {
                 x : data.trainX,
                 y : data.train,
                 name : "Train",
-                mode : "lines"
+                mode : "lines",
+                type: "scatter",
+                line: {color: "#ff0045"}
             };
 
             let test = {
                 x : data.testX,
                 y : data.test,
-                name : "Prediction",
-                mode : "lines"
+                name : "Test",
+                mode : "lines",
+                type: "scatter",
+                line: {color: "#34654c"}
             };
 
             // hide spinner
@@ -116,10 +126,10 @@ function plot(data, title="Stock Prediction", convert=true) {
         height : 600,
         title : title,
         xaxis : {
-          title : "Day",
+          title : "Days",
         },
         yaxis : {
-          title : "Price",
+          title : "Price in USD ($)",
           automargin : true,
         },
     };

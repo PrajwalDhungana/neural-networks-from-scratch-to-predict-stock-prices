@@ -4,6 +4,7 @@ import numpy as np
 import pandas_datareader.data as web
 import datetime as dt
 import sys
+import yfinance as yf
 # to import from a parent directory
 sys.path.append('../')
 from NeuralNetworks.FeedForward import FeedForward
@@ -248,7 +249,7 @@ def get_stock_data(ticker, start=[2019, 1, 1], end=[2019, 12, 31], json=True):
 
     # download csv from yahoo finance
     try:
-        df = web.DataReader(ticker, 'yahoo', start, end)
+        df = yf.download(ticker, start, end)
     except:
         # error info
         e = sys.exc_info()
@@ -308,9 +309,38 @@ def post_js_data():
         train_res, test_res = [i for i in train_res[0][:]], [i for i in test_res[0][:]]
 
         # range of x values for plotting
-        actualX = [i for i in range(len(actual))] 
-        trainX = [i for i in range(len(train_res))] 
-        testX = [i for i in range(len(train_res), len(train_res) + len(test_res))]
+        # actualX = [i for i in range(len(actual))]
+        i=0
+        pred_date=[]
+        print(dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d'))
+        startDate = dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d')
+        while(i < len(actual)) :
+            new_dates = startDate + dt.timedelta(days=i)
+            pred_date.append(new_dates.strftime ('%Y-%m-%d'))
+            i += 1
+        actualX = pred_date
+
+        # trainX = [i for i in range(len(train_res))] 
+        i=0
+        train_date=[]
+        print(dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d'))
+        trainDate = dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d')
+        while(i < len(train_res)) :
+            new_dates = trainDate + dt.timedelta(days=i)
+            train_date.append(new_dates.strftime ('%Y-%m-%d'))
+            i += 1
+        trainX = train_date
+
+        # testX = [i for i in range(len(train_res), len(train_res) + len(test_res))]
+        i=0
+        test_date=[]
+        print(dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d'))
+        testDate = dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d')
+        while(i < len(test_res)) :
+            new_dates = testDate + dt.timedelta(days=i)
+            test_date.append(new_dates.strftime ('%Y-%m-%d'))
+            i += 1
+        testX = test_date
 
         # connect training and test lines in plot
         test_res.insert(0, train_res[-1])
