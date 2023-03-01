@@ -311,14 +311,21 @@ def post_js_data():
         # range of x values for plotting
         # actualX = [i for i in range(len(actual))]
         i=0
-        pred_date=[]
+        date_list=[]
         print(dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d'))
         startDate = dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d')
-        while(i < len(actual)) :
+        endDate = dt.datetime.strptime(str(data["endDate"]), '%Y-%m-%d')
+
+        num_days = (endDate - startDate).days
+
+        # Create a list of dates between the start and end dates
+        date_list = [startDate + dt.timedelta(days=x) for x in range(num_days)]
+
+        while(i <= num_days) :
             new_dates = startDate + dt.timedelta(days=i)
-            pred_date.append(new_dates.strftime ('%Y-%m-%d'))
+            date_list.append(new_dates.strftime ('%Y-%m-%d'))
             i += 1
-        actualX = pred_date
+        actualX = date_list
 
         # trainX = [i for i in range(len(train_res))] 
         i=0

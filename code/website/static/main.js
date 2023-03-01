@@ -99,7 +99,7 @@ $(document).ready(() => {
                 name : "Test",
                 mode : "lines",
                 type: "scatter",
-                line: {color: "#34654c"}
+                line: {color: "#00ffc1"}
             };
 
             // hide spinner
