@@ -37,7 +37,7 @@ def lstm_predict(stock, start, end):
     scaler = Normalize(df)
     df = scaler.normalize_data(df)
 
-    train_max_index = round((len(df) - 1) * 0.75)
+    train_max_index = round((len(df) - 1) * 0.80)
 
     training_input_1 = [[df[i-6], df[i-5]] for i in range(6, train_max_index)]
     training_input_2 = [[df[i-4], df[i-3]] for i in range(6, train_max_index)]
@@ -55,7 +55,7 @@ def lstm_predict(stock, start, end):
     NN = LSTM()
 
     # number of training cycles
-    training_cycles = 100
+    training_cycles = 10
 
     # train the neural network
     for cycle in range(training_cycles):
@@ -98,11 +98,13 @@ def lstm_predict(stock, start, end):
 
     # accuracy
     accuracy = 100 - mape(test_target, test)
+    print("MSE : ", mse(test_target, test))
+    print("RMSE : ", rmse(test_target, test))
 
-    return stock[6:], prices, pd.DataFrame(test), str(round(accuracy, 2))
+    return stock, prices, pd.DataFrame(test), str(round(accuracy, 2))
 
 
-def rnn_predict(stock, start, end):
+# def rnn_predict(stock, start, end):
     # get stock data
     try:
         df = get_stock_data(stock, start, end, json=False)
@@ -144,7 +146,7 @@ def rnn_predict(stock, start, end):
 
     return df[4:], pd.DataFrame(train_outputs), pd.DataFrame(test_outputs), str(round(accuracy, 2))
 
-def train_test_split(df, split=0.75):
+# def train_test_split(df, split=0.75):
     # if split=0.75, splits data into 75% training, 25% test
     # provides targets for training and accuracy measurments
     # -4 necessary as we take in 4 extra input from start date -4
@@ -169,25 +171,26 @@ def train_test_split(df, split=0.75):
 
     return train_inputs, train_targets, test_inputs, test_targets
 
-def shift_date(date, shift=4):
+# def shift_date(date, shift=4):
     # y/m/d
     new_date = dt.date(*date) - dt.timedelta(days=shift)
     new_date = new_date.strftime("%Y/%m/%d")
     new_date = [int(s) for s in new_date.split("/")]
     return new_date
 
-def handle_nn(stock, start, end, model):
+def handle_nn(stock, start, end):
     # create nn the user selected
-    if model == "ff":
-        NN = FeedForward()
-        return predict(stock, start, end, NN)
-    if model == "rnn":
-        return rnn_predict(stock, start, end)
-    else:
-        # TODO update nn created below when finished
-        return lstm_predict(stock, start, end)
+    # if model == "ff":
+    #     NN = FeedForward()
+    #     return predict(stock, start, end, NN)
+    # if model == "rnn":
+    #     return rnn_predict(stock, start, end)
+    # else:
 
-def predict(stock, start, end, NN):
+    # TODO update nn created below when finished
+    return lstm_predict(stock, start, end)
+
+# def predict(stock, start, end, NN):
     # shift start date -4 days for correct test/train i/o
     start = shift_date(start)
 
@@ -241,11 +244,10 @@ def predict(stock, start, end, NN):
     # return original stock data, training output, testing output, test prediction accuracy
     return df[4:], prices, pd.DataFrame(test_outputs), str(accuracy)
 
-
-def get_stock_data(ticker, start=[2019, 1, 1], end=[2019, 12, 31], json=True):
+def get_stock_data(ticker, start=[2020, 1, 1], end=[2022, 12, 31], json=True):
     # *list passes the values in list as parameters
     start = dt.datetime(*start)
-    end = dt.datetime(*end)
+    end = dt.datetime.today()
 
     # download csv from yahoo finance
     try:
@@ -268,6 +270,7 @@ def get_stock_data(ticker, start=[2019, 1, 1], end=[2019, 12, 31], json=True):
     else:
         # return data as csv
         return df
+    
 # app routes are urls which facilitate
 # data transmit, mainly:
 # Get and Post requests
@@ -289,14 +292,13 @@ def post_js_data():
         stock = data["stock"].upper()
         start = data["startDate"].split("-")
         end = data["endDate"].split("-")
-        model = data["model"]
 
         # convert strings to integers
         start, end = [int(s) for s in start], [int(s) for s in end]
 
         try:
             # get original stock data, train and test results
-            actual, train_res, test_res, accuracy = handle_nn(stock, start, end, model)
+            actual, train_res, test_res, accuracy = handle_nn(stock, start, end)
         except:
             # error info
             e = sys.exc_info()
@@ -311,21 +313,14 @@ def post_js_data():
         # range of x values for plotting
         # actualX = [i for i in range(len(actual))]
         i=0
-        date_list=[]
+        actual_date=[]
         print(dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d'))
         startDate = dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d')
-        endDate = dt.datetime.strptime(str(data["endDate"]), '%Y-%m-%d')
-
-        num_days = (endDate - startDate).days
-
-        # Create a list of dates between the start and end dates
-        date_list = [startDate + dt.timedelta(days=x) for x in range(num_days)]
-
-        while(i <= num_days) :
+        while(i < len(actual)) :
             new_dates = startDate + dt.timedelta(days=i)
-            date_list.append(new_dates.strftime ('%Y-%m-%d'))
+            actual_date.append(new_dates.strftime ('%Y-%m-%d'))
             i += 1
-        actualX = date_list
+        actualX = actual_date
 
         # trainX = [i for i in range(len(train_res))] 
         i=0
