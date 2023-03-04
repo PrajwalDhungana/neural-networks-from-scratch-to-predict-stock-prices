@@ -1,18 +1,14 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
-import pandas_datareader.data as web
 import datetime as dt
 import sys
 import yfinance as yf
 # to import from a parent directory
 sys.path.append('../')
-from NeuralNetworks.FeedForward import FeedForward
-from NeuralNetworks.rnn_v2 import RNN_V2
 from NeuralNetworks.lstm import LSTM
-from NeuralNetworks.RNN import RNN
 from utils import *
-from normalize import Normalize, MinMax
+from normalize import Normalize
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -57,7 +53,7 @@ def lstm_predict(stock, start, end):
     NN = LSTM()
 
     # number of training cycles
-    training_cycles = 10
+    training_cycles = 1
 
     # train the neural network
     for cycle in range(training_cycles):
@@ -100,12 +96,39 @@ def lstm_predict(stock, start, end):
 
     # accuracy
     accuracy = 100 - mape(test_target, test)
-    print("MSE : ", mse(test_target, test))
-    print("RMSE : ", rmse(test_target, test))
+    print("Mean Squared Error (MSE) : ", mse(test_target, test))
+    print("Root Mean Square Error (RMSE) : ", rmse(test_target, test))
 
-    print("DF TEST", pd.DataFrame(test))
+    if(dt.datetime(*end) > dt.datetime.today()):
+        num_days = (dt.datetime(*end) - dt.datetime.today()).days
+        print("DAYS : ", num_days)
 
-    return stock, trend_dates, prices, pd.DataFrame(test), str(round(accuracy, 2))
+        # prediction for future
+        prediction_input_1 = [[df[i-6], df[i-5]] for i in range(len(df)-100, len(df))]
+        prediction_input_2 = [[df[i-4], df[i-3]] for i in range(len(df)-100, len(df))]
+        prediction_input_3 = [[df[i-2], df[i-1]] for i in range(len(df)-100, len(df))]
+        predict_target = [[i] for i in df[len(df)-100: len(df)]]
+
+        assert len(prediction_input_1) == len(prediction_input_2) == len(prediction_input_3) == len(predict_target)
+
+        prediction_input_1 = np.array(prediction_input_1, dtype=float)
+        prediction_input_2 = np.array(prediction_input_2, dtype=float)
+        prediction_input_3 = np.array(prediction_input_3, dtype=float)
+        predict_target = np.array(predict_target, dtype=float)
+        print("TARGET")
+        print("Target: ", predict_target)
+
+        # test the network with unseen data
+        predict = NN.test(prediction_input_1, prediction_input_2, prediction_input_3)
+
+        # de-Normalize data
+        predict = scaler.denormalize_data(predict)
+        predict_target = scaler.denormalize_data(predict_target)
+
+        # transplose test results
+        predict = predict.T
+
+    return stock, trend_dates, prices, pd.DataFrame(test),  str(round(accuracy, 2))
 
 def handle_nn(stock, start, end):
     return lstm_predict(stock, start, end)
