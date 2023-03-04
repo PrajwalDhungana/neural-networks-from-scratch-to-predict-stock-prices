@@ -53,11 +53,11 @@ def lstm_predict(stock, start, end):
     NN = LSTM()
 
     # number of training cycles
-    training_cycles = 1
+    training_cycles = 10
 
     # train the neural network
     for cycle in range(training_cycles):
-        for n in training_input_1:
+        for n in range(0, len(target)):
             output = NN.train(training_input_1, training_input_2, training_input_3, target)
 
 
@@ -95,19 +95,35 @@ def lstm_predict(stock, start, end):
     test = test.T
 
     # accuracy
-    accuracy = 100 - mape(test_target, test)
+    train_accuracy = 100 - mape(target, output)
+    print("------------ TRAINING STATS ------------")
+    print("Accuracy in %: ", train_accuracy)
+    print("Mean Squared Error (MSE) : ", mse(target, output))
+    print("Root Mean Square Error (RMSE) : ", rmse(target, output))
+
+    # accuracy
+    test_accuracy = 100 - mape(test_target, test)
+    print("\n------------ TESTING STATS ------------")
+    print("Accuracy in %: ", test_accuracy)
     print("Mean Squared Error (MSE) : ", mse(test_target, test))
     print("Root Mean Square Error (RMSE) : ", rmse(test_target, test))
-
+    
+    num_days = 0
+    predict = []
     if(dt.datetime(*end) > dt.datetime.today()):
         num_days = (dt.datetime(*end) - dt.datetime.today()).days
         print("DAYS : ", num_days)
 
+        pred_input = pd.DataFrame(test)
+        pred_input = pred_input[0].tail(n=100)
+        scaler = Normalize(pred_input)
+        pred_input = scaler.normalize_data(pred_input)
+
         # prediction for future
-        prediction_input_1 = [[df[i-6], df[i-5]] for i in range(len(df)-100, len(df))]
-        prediction_input_2 = [[df[i-4], df[i-3]] for i in range(len(df)-100, len(df))]
-        prediction_input_3 = [[df[i-2], df[i-1]] for i in range(len(df)-100, len(df))]
-        predict_target = [[i] for i in df[len(df)-100: len(df)]]
+        prediction_input_1 = [[pred_input[i-6], pred_input[i-5]] for i in range(6, len(pred_input))]
+        prediction_input_2 = [[pred_input[i-4], pred_input[i-3]] for i in range(6, len(pred_input))]
+        prediction_input_3 = [[pred_input[i-2], pred_input[i-1]] for i in range(6, len(pred_input))]
+        predict_target = [[i] for i in pred_input[6:len(pred_input)]]
 
         assert len(prediction_input_1) == len(prediction_input_2) == len(prediction_input_3) == len(predict_target)
 
@@ -115,8 +131,6 @@ def lstm_predict(stock, start, end):
         prediction_input_2 = np.array(prediction_input_2, dtype=float)
         prediction_input_3 = np.array(prediction_input_3, dtype=float)
         predict_target = np.array(predict_target, dtype=float)
-        print("TARGET")
-        print("Target: ", predict_target)
 
         # test the network with unseen data
         predict = NN.test(prediction_input_1, prediction_input_2, prediction_input_3)
@@ -128,10 +142,7 @@ def lstm_predict(stock, start, end):
         # transplose test results
         predict = predict.T
 
-    return stock, trend_dates, prices, pd.DataFrame(test),  str(round(accuracy, 2))
-
-def handle_nn(stock, start, end):
-    return lstm_predict(stock, start, end)
+    return stock, trend_dates, prices, pd.DataFrame(test), pd.DataFrame(predict), str(round(test_accuracy, 2)), num_days
 
 def get_stock_data(ticker, start=[2020, 1, 1], end=[2023, 1, 1], json=True):
     # *list passes the values in list as parameters
@@ -187,7 +198,7 @@ def post_js_data():
 
         try:
             # get original stock data, train and test results
-            actual, trend_dates, train_res, test_res, accuracy = handle_nn(stock, start, end)
+            actual, trend_dates, train_res, test_res, pred_res, accuracy, num_days = lstm_predict(stock, start, end)
         except:
             # error info
             e = sys.exc_info()
@@ -197,16 +208,33 @@ def post_js_data():
 
         # convert pandas dataframe to list
         actual = [i for i in actual]
-        train_res, test_res = [i for i in train_res[0][:]], [i for i in test_res[0][:]]
-        train_date, test_date = [i for i in trend_dates[6:len(train_res)]], [i for i in trend_dates[len(train_res)+6:]]
+        train_res, test_res, pred_res = [i for i in train_res[0][:]], [i for i in test_res[0][:]], [i for i in pred_res[0][:]]
+        train_date, test_date, pred_date = [i for i in trend_dates[6:len(train_res)]], [i for i in trend_dates[len(train_res)+6:]], [i for i in trend_dates[len(pred_res)+num_days]]
+
+        # Generate next prediction date
+        i=1
+        pred_date = []
+        while(i <= num_days) :
+            new_dates = dt.datetime.today() + dt.timedelta(days=i)
+            pred_date.append(new_dates.strftime ('%Y-%m-%d'))
+            i += 1
+
+        print("Next prediction dates : ", pred_date)
+        pred_res = pred_res[len(pred_res)-num_days:]
+        print("Next prediction prices : ", pred_res)
 
         actualX = trend_dates
         trainX = train_date
         testX = test_date
+        predX = pred_date
 
         # connect training and test lines in plot
         test_res.insert(0, train_res[-1])
         testX.insert(0, trainX[-1])
+
+        # connect training and test lines in plot
+        pred_res.insert(0, test_res[-1])
+        predX.insert(0, testX[-1])
 
         return {"stock" : stock,
                 "actual" : actual,
@@ -215,6 +243,8 @@ def post_js_data():
                 "trainX" : trainX, 
                 "test" : test_res,
                 "testX" : testX,
+                "pred" : pred_res,
+                "predX" : predX,
                 "accuracy" : accuracy}
         
 if __name__ == '__main__':

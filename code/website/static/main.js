@@ -102,10 +102,19 @@ $(document).ready(() => {
                 line: {color: "#00ffc1"}
             };
 
+            let predict = {
+                x : data.predX,
+                y : data.pred,
+                name : "Prediction",
+                mode : "lines",
+                type: "scatter",
+                line: {color: "#23ddec"}
+            };
+
             // hide spinner
             spinner(hide=true);
 
-            plot([actual, train, test], title, convert=false);
+            plot([actual, train, test, predict], title, convert=false);
 
         }).catch(function(e) {
             // hide spinner
