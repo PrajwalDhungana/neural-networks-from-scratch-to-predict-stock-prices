@@ -1,6 +1,6 @@
 // default dates
-let dates = {"start" : "2019-01-01",
-             "end" : "2019-12-31"};
+let dates = {"start" : "2020-01-01",
+             "end" : "2023-01-01"};
 
 // default neural network model for prediction
 let model_selection = {"model" : "ff"};

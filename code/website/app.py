@@ -24,7 +24,7 @@ def lstm_predict(stock, start, end):
 
     # get stock data
     try:
-        df = get_stock_data(stock, start, end, json=False)
+        df, data = get_stock_data(stock, start, end, json=False)
     except:
         # error info
         e = sys.exc_info()
@@ -33,6 +33,8 @@ def lstm_predict(stock, start, end):
         return e
 
     stock = df
+    data = data.reset_index()
+    trend_dates = pd.to_datetime(data["Date"]).map(lambda x: str(x.date())).tolist()
     
     scaler = Normalize(df)
     df = scaler.normalize_data(df)
@@ -101,157 +103,21 @@ def lstm_predict(stock, start, end):
     print("MSE : ", mse(test_target, test))
     print("RMSE : ", rmse(test_target, test))
 
-    return stock, prices, pd.DataFrame(test), str(round(accuracy, 2))
+    print("DF TEST", pd.DataFrame(test))
 
-
-# def rnn_predict(stock, start, end):
-    # get stock data
-    try:
-        df = get_stock_data(stock, start, end, json=False)
-    except:
-        # error info
-        e = sys.exc_info()
-        print(e)
-        print("rnn predict fail")
-        return e
-
-    # normalize
-    scaler = Normalize(df, max=True)
-    normalized = scaler.normalize_data(df)
-
-    # get training and testing inputs and outputs
-    train_inputs, train_targets, test_inputs, test_targets = train_test_split(normalized)
-
-    train_inputs = np.array(train_inputs)
-    train_targets = np.array(train_targets)
-    test_inputs = np.array(test_inputs)
-    test_targets = np.array(test_targets)
-
-    # returns 3d array in format [inputs, timesteps, features]
-    train_inputs = to_3d(train_inputs)
-    test_inputs = to_3d(test_inputs)
-
-    NN = RNN_V2()
-    train_outputs = NN.train(train_inputs, train_targets, epochs=100)
-    test_outputs = NN.test(test_inputs)
-
-    # de-normalize
-    train_outputs = scaler.denormalize_data(train_outputs)
-    train_targets = scaler.denormalize_data(train_targets)
-    test_outputs = scaler.denormalize_data(test_outputs)
-    test_targets = scaler.denormalize_data(test_targets).T
-
-    # accuracy
-    accuracy = 100 - mape(test_targets, test_outputs)
-
-    return df[4:], pd.DataFrame(train_outputs), pd.DataFrame(test_outputs), str(round(accuracy, 2))
-
-# def train_test_split(df, split=0.75):
-    # if split=0.75, splits data into 75% training, 25% test
-    # provides targets for training and accuracy measurments
-    # -4 necessary as we take in 4 extra input from start date -4
-    # to ensure train_input + test_input = len(df) -4
-    # meaning the output data is the same size as the original
-    max_index = round((len(df) - 1 - 4) * split)
-
-    # adjusted close price [2 days ago, 1 day ago]
-    train_inputs = [[df[i-2], df[i-1]] for i in range(2, max_index)]
-    # target is the next day for a given input above
-    # e.g inputs = [day1, day2], [day2, day3]
-    #     targets = [day3, day4]
-    train_targets = [[i] for i in df[2 : max_index]]
-
-    assert len(train_inputs) == len(train_targets)
-
-    test_inputs = [[df[i-2], df[i-1]] for i in range(max_index + 2, len(df))]
-    test_targets = [[i] for i in df[max_index + 2:]]
-
-    assert len(test_inputs) == len(test_targets)
-    assert len(train_inputs) + len(test_inputs) == len(df) - 4
-
-    return train_inputs, train_targets, test_inputs, test_targets
-
-# def shift_date(date, shift=4):
-    # y/m/d
-    new_date = dt.date(*date) - dt.timedelta(days=shift)
-    new_date = new_date.strftime("%Y/%m/%d")
-    new_date = [int(s) for s in new_date.split("/")]
-    return new_date
+    return stock, trend_dates, prices, pd.DataFrame(test), str(round(accuracy, 2))
 
 def handle_nn(stock, start, end):
-    # create nn the user selected
-    # if model == "ff":
-    #     NN = FeedForward()
-    #     return predict(stock, start, end, NN)
-    # if model == "rnn":
-    #     return rnn_predict(stock, start, end)
-    # else:
-
-    # TODO update nn created below when finished
     return lstm_predict(stock, start, end)
 
-# def predict(stock, start, end, NN):
-    # shift start date -4 days for correct test/train i/o
-    start = shift_date(start)
-
-    # get stock data
-    try:
-        df = get_stock_data(stock, start, end, json=False)
-    except:
-        # error info
-        e = sys.exc_info()
-        print(e)
-        print("predict fail")
-        return e
-
-    # split data into training and testing
-    train_inputs, train_targets, test_inputs, test_targets = train_test_split(df)
-
-    # normalize data
-    scaler = MinMax(df)
-    train_inputs = scaler.normalize_data(train_inputs)
-    train_targets = scaler.normalize_data(train_targets)
-
-    # number of training cycles
-    epochs = 100
-
-    # train the neural network
-    for epoch in range(epochs):
-        for prices in train_inputs:
-            train_outputs = NN.train(train_inputs, train_targets)
-
-    # de-Normalize data
-    train_outputs = scaler.denormalize_data(train_outputs)
-    prices = pd.DataFrame(train_outputs.T)
-
-    # Normalize data
-    test_inputs = scaler.normalize_data(test_inputs)
-
-    # test the network with unseen data
-    test_outputs = NN.test(test_inputs)
-
-    # de-Normalize data
-    test_inputs = scaler.denormalize_data(test_inputs)
-    test_outputs = scaler.denormalize_data(test_outputs)
-
-    # transplose test results
-    test_outputs = test_outputs.T
-
-    # accuracy of test prediction
-    # rounds accuracy to 2 decimal places
-    accuracy = round(100 - mape(test_targets, test_outputs), 2)
-
-    # return original stock data, training output, testing output, test prediction accuracy
-    return df[4:], prices, pd.DataFrame(test_outputs), str(accuracy)
-
-def get_stock_data(ticker, start=[2020, 1, 1], end=[2022, 12, 31], json=True):
+def get_stock_data(ticker, start=[2020, 1, 1], end=[2023, 1, 1], json=True):
     # *list passes the values in list as parameters
     start = dt.datetime(*start)
-    end = dt.datetime.today()
+    end = dt.datetime(*end)
 
     # download csv from yahoo finance
     try:
-        df = yf.download(ticker, start, end)
+        data = yf.download(ticker, start, end)
     except:
         # error info
         e = sys.exc_info()
@@ -260,7 +126,7 @@ def get_stock_data(ticker, start=[2020, 1, 1], end=[2022, 12, 31], json=True):
         return e
 
     # extract adjusted close column
-    df = df["Adj Close"]
+    df = data["Adj Close"]
     # remove Date column
     df = pd.DataFrame([i for i in df])[0]
     if json:
@@ -269,7 +135,7 @@ def get_stock_data(ticker, start=[2020, 1, 1], end=[2022, 12, 31], json=True):
 
     else:
         # return data as csv
-        return df
+        return df, data
     
 # app routes are urls which facilitate
 # data transmit, mainly:
@@ -298,7 +164,7 @@ def post_js_data():
 
         try:
             # get original stock data, train and test results
-            actual, train_res, test_res, accuracy = handle_nn(stock, start, end)
+            actual, trend_dates, train_res, test_res, accuracy = handle_nn(stock, start, end)
         except:
             # error info
             e = sys.exc_info()
@@ -309,39 +175,10 @@ def post_js_data():
         # convert pandas dataframe to list
         actual = [i for i in actual]
         train_res, test_res = [i for i in train_res[0][:]], [i for i in test_res[0][:]]
+        train_date, test_date = [i for i in trend_dates[6:len(train_res)]], [i for i in trend_dates[len(train_res)+6:]]
 
-        # range of x values for plotting
-        # actualX = [i for i in range(len(actual))]
-        i=0
-        actual_date=[]
-        print(dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d'))
-        startDate = dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d')
-        while(i < len(actual)) :
-            new_dates = startDate + dt.timedelta(days=i)
-            actual_date.append(new_dates.strftime ('%Y-%m-%d'))
-            i += 1
-        actualX = actual_date
-
-        # trainX = [i for i in range(len(train_res))] 
-        i=0
-        train_date=[]
-        print(dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d'))
-        trainDate = dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d')
-        while(i < len(train_res)) :
-            new_dates = trainDate + dt.timedelta(days=i)
-            train_date.append(new_dates.strftime ('%Y-%m-%d'))
-            i += 1
+        actualX = trend_dates
         trainX = train_date
-
-        # testX = [i for i in range(len(train_res), len(train_res) + len(test_res))]
-        i=0
-        test_date=[]
-        print(dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d'))
-        testDate = dt.datetime.strptime(str(data["startDate"]), '%Y-%m-%d')
-        while(i < len(test_res)) :
-            new_dates = testDate + dt.timedelta(days=i)
-            test_date.append(new_dates.strftime ('%Y-%m-%d'))
-            i += 1
         testX = test_date
 
         # connect training and test lines in plot

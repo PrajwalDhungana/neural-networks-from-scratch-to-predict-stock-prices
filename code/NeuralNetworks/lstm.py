@@ -7,7 +7,6 @@ class LSTM:
         self.input_nodes = input
         self.lstm_cell_weights = lstm_cell_weights
         self.output_nodes = output
-        print("WEIGHTS : ", lstm_cell_weights)
         
         # weight matrices
         # wff = weights for forget gate
