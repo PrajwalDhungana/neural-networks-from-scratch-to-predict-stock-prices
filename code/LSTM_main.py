@@ -6,7 +6,7 @@ from utils import *
 
 def main():    
     # returns pandas dataframe
-    df = get_stock_data("FB")
+    df = get_stock_data("MSFT")
     # extract only the adjusted close prices of the selected stock
     df = df['Adj Close']
 
